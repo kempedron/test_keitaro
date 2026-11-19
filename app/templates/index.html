@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ app_name }}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen" data-prefix="{{ prefix }}">
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-20">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center gap-3 justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-lg bg-indigo-600 text-white grid place-items-center font-bold">K</div>
+        <div>
+          <h1 class="text-lg font-semibold leading-tight">{{ app_name }}</h1>
+          <p class="text-xs text-slate-500">Keitaro Admin API v1 · префикс <code class="bg-slate-100 px-1 rounded">{{ prefix }}</code></p>
+        </div>
+      </div>
+      <nav class="flex gap-1 bg-slate-100 p-1 rounded-lg" aria-label="Разделы">
+        <button id="tab-create" class="tab-btn px-4 py-1.5 rounded-md text-sm font-medium" data-tab="create">Создать кампанию</button>
+        <button id="tab-editor" class="tab-btn px-4 py-1.5 rounded-md text-sm font-medium" data-tab="editor">Редактор</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 py-6">
+    <section id="panel-create" class="tab-panel">
+      <div class="grid lg:grid-cols-5 gap-6">
+        <form id="create-form" class="lg:col-span-3 bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-5">
+          <div>
+            <h2 class="text-xl font-semibold">Новая кампания</h2>
+            <p class="text-sm text-slate-500">Поток 1 — гео-редирект на Google, Поток 2 — выбранный оффер.</p>
+          </div>
+
+          <div>
+            <label class="label" for="campaign-name">Название кампании</label>
+            <input id="campaign-name" name="name" class="input" autocomplete="off" placeholder="e2e_check" required />
+            <p class="hint">Итоговое имя: <span id="name-preview" class="font-medium text-indigo-700"></span></p>
+          </div>
+
+          <div>
+            <label class="label" for="geo-input">Гео (ISO-3166-1 alpha-2)</label>
+            <input id="geo-input" name="geo" class="input" placeholder="AU или MX, AU, RO" required />
+            <p class="hint">Можно указать несколько стран через запятую. Регистр не важен.</p>
+          </div>
+
+          <div class="relative">
+            <label class="label" for="offer-search">Оффер</label>
+            <input id="offer-search" class="input" autocomplete="off" placeholder="Начните вводить название или ID" />
+            <div id="offer-dropdown" class="dropdown hidden"></div>
+            <p class="hint" id="offer-selected">Оффер не выбран</p>
+          </div>
+
+          <div>
+            <label class="label" for="offer-id-manual">ID оффера вручную</label>
+            <input id="offer-id-manual" class="input" type="number" min="1" step="1" placeholder="Например, 17210" />
+            <p class="hint">Если оффер не виден в поиске, укажите его ID. Keitaro проверит оффер при создании потока.</p>
+          </div>
+
+          <div class="grid sm:grid-cols-3 gap-4">
+            <div>
+              <label class="label" for="domain-select">Домен</label>
+              <select id="domain-select" class="input"></select>
+            </div>
+            <div>
+              <label class="label" for="group-select">Группа</label>
+              <select id="group-select" class="input"></select>
+            </div>
+            <div>
+              <label class="label" for="source-select">Источник трафика</label>
+              <select id="source-select" class="input"></select>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-3">
+            <button type="submit" id="create-submit" class="btn-primary">
+              <span class="spinner hidden" id="create-spinner"></span>
+              <span>Create</span>
+            </button>
+            <button type="button" id="create-reset" class="btn-secondary">Сбросить</button>
+          </div>
+        </form>
+
+        <aside class="lg:col-span-2 space-y-4">
+          <div id="create-result" class="hidden bg-white rounded-xl shadow-sm border border-slate-200 p-6"></div>
+          <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 text-sm text-slate-600">
+            <h3 class="font-semibold text-slate-800 mb-2">Что произойдёт</h3>
+            <ol class="list-decimal list-inside space-y-1">
+              <li>Создаётся кампания с типом ротации <code>position</code>.</li>
+              <li>Поток 1: страна из гео, режим <code>accept</code>, редирект <code>https://google.com/</code>.</li>
+              <li>Поток 2: схема <code>landings</code>, оффер со <code>share: 100</code>.</li>
+              <li>Результат и ошибки Keitaro показываются справа.</li>
+            </ol>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section id="panel-editor" class="tab-panel hidden">
+      <div class="grid lg:grid-cols-12 gap-6">
+        <aside class="lg:col-span-4 space-y-4">
+          <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 space-y-3">
+            <div class="flex items-center justify-between">
+              <h2 class="text-lg font-semibold">Кампании</h2>
+              <button id="campaign-refresh" class="btn-secondary text-xs">Обновить</button>
+            </div>
+            <div class="flex gap-2">
+              <input id="campaign-search" class="input" placeholder="Поиск: имя, alias, ID" autocomplete="off" />
+            </div>
+            <label class="flex items-center gap-2 text-sm text-slate-600">
+              <input id="campaign-mine" type="checkbox" checked class="rounded border-slate-300" />
+              Только мои <code class="bg-slate-100 px-1 rounded text-xs">{{ prefix }}</code>
+            </label>
+            <div class="flex gap-2">
+              <input id="campaign-id-input" class="input" placeholder="Открыть по ID" inputmode="numeric" />
+              <button id="campaign-open-id" class="btn-secondary">Открыть</button>
+            </div>
+          </div>
+          <div id="campaign-list" class="bg-white rounded-xl shadow-sm border border-slate-200 max-h-[65vh] overflow-auto divide-y divide-slate-100"></div>
+        </aside>
+
+        <section class="lg:col-span-8 space-y-4">
+          <div id="editor-empty" class="bg-white rounded-xl border border-dashed border-slate-300 p-10 text-center text-slate-500">
+            Выберите кампанию слева или откройте её по ID.
+          </div>
+          <div id="editor-content" class="hidden space-y-4"></div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 w-80"></div>
+
+  <div id="error-modal" class="fixed inset-0 bg-slate-900/50 hidden items-center justify-center p-4 z-40">
+    <div class="bg-white rounded-xl max-w-lg w-full p-6 space-y-3">
+      <div class="flex items-start justify-between gap-4">
+        <h3 class="text-lg font-semibold text-rose-700">Ошибка API Keitaro</h3>
+        <button id="error-close" class="text-slate-400 hover:text-slate-700 text-xl leading-none">&times;</button>
+      </div>
+      <p id="error-status" class="text-sm font-mono text-slate-500"></p>
+      <pre id="error-text" class="text-sm bg-slate-50 border border-slate-200 rounded-lg p-3 whitespace-pre-wrap max-h-72 overflow-auto"></pre>
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
